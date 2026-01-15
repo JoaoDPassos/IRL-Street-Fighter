@@ -1,7 +1,7 @@
 import time
 from pi_servo_hat import PiServoHat
 
-CHANNEL = 0        # change to your channel
+CHANNEL = 1        # change to your channel
 FREQ_HZ = 50       # datasheet allows 50-330 Hz; 50 is standard
 STEP_US = 50       # step size for the sweep
 DWELL = 0.10       # seconds between steps
