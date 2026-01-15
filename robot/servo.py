@@ -15,6 +15,8 @@ class ServoConfig:
     name: str = ""
     swing_deg: int = 180         
     invert: bool = False         # flip direction if mounted reversed
+    home_deg: float = 0
+    margin_deg: float = 5.0
 
 class Servo:
     """
@@ -23,6 +25,7 @@ class Servo:
     """
     def __init__(self, cfg: ServoConfig):
         self.cfg = cfg
+        self.last_deg: Optional[float] = None
 
 class ServoController:
     """
@@ -47,10 +50,9 @@ class ServoController:
         self.servos[ch] = servo
 
     def move(self, servo: Servo, deg: float) -> float:
-        target = servo.clamp(deg)
-        self.hat.move_servo_position(servo.cfg.channel, target, swing=servo.cfg.swing_deg)
-        servo.last_deg = target
-        return target
+        self.hat.move_servo_position(servo.cfg.channel, deg, swing=servo.cfg.swing_deg)
+        servo.last_deg = deg
+        return deg
 
     def move_many(self, commands: Dict[Servo, float]) -> Dict[Servo, float]:
         """
@@ -61,38 +63,9 @@ class ServoController:
             results[s] = self.move(s, d)
         return results
 
+    def home_all(self) -> None:
+        for s in self.servos.values():
+            self.move(s, s.cfg.home_deg)
+
     def sleep(self) -> None:
         self.hat.sleep()
-
-
-# ---- Example usage / quick test ----
-if __name__ == "__main__":
-    ctrl = ServoController(pwm_hz=50)
-
-    s0 = Servo(ServoConfig(channel=0, name="base", home_deg=90))
-    s1 = Servo(ServoConfig(channel=1, name="left_arm", home_deg=90))
-    s2 = Servo(ServoConfig(channel=2, name="right_arm", home_deg=90))
-
-    for s in [s0, s1, s2]:
-        ctrl.register(s)
-
-    ctrl.home_all()
-    time.sleep(0.5)
-
-    # Small coordinated motion for ~5 seconds
-    t0 = time.perf_counter()
-    phases = [0.0, 2*math.pi/5, 4*math.pi/5, 6*math.pi/5, 8*math.pi/5]
-    servos: List[Servo] = [s0, s1, s2]
-
-    while (time.perf_counter() - t0) < 5.0:
-        t = time.perf_counter() - t0
-        cmds = {}
-        for s, ph in zip(servos, phases):
-            angle = s.center + s.amp * math.sin(2 * math.pi * 1.0 * t + ph)
-            cmds[s] = angle
-        ctrl.move_many(cmds)
-        time.sleep(0.01)
-
-    ctrl.home_all()
-    time.sleep(0.5)
-    ctrl.sleep()
