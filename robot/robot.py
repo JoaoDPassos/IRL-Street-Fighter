@@ -175,6 +175,69 @@ class Robot:
             self.set_pose(base=base_angle)
             time.sleep(0.01)
 
+    def celebrate(
+    self,
+    duration_s: float = 6.0,
+    update_hz: float = 50.0,
+    base_amp: float = 25.0,
+    head_amp: float = 20.0,
+    arms_amp: float = 35.0,
+    base_hz: float = 0.8,
+    head_hz: float = 1.2,
+    arms_hz: float = 2.0,
+    ) -> None:
+        """
+        Celebrate gesture:
+        - base sways left/right
+        - head yaws left/right
+        - both arms go up/down TOGETHER (same commanded angle)
+        """
+
+        # Start from home pose
+        self.home()
+        time.sleep(0.2)
+
+        dt = 1.0 / float(update_hz)
+        t0 = time.perf_counter()
+        next_t = t0
+
+        base_center = self.base.cfg.home_deg
+        head_center = self.head_yaw.cfg.home_deg
+        arms_center = self.right_arm.cfg.home_deg  # both arms use same center
+
+        while True:
+            now = time.perf_counter()
+            t = now - t0
+            if t >= duration_s:
+                break
+
+            base_angle = base_center + base_amp * math.sin(2 * math.pi * base_hz * t)
+            head_angle = head_center + head_amp * math.sin(2 * math.pi * head_hz * t + math.pi / 6.0)
+
+            # Arms move together (in-phase)
+            arms_angle = arms_center + arms_amp * math.sin(2 * math.pi * arms_hz * t)
+
+            # Apply safety/inversion helper (so you don’t hit endpoints)
+            cmds = {
+                self.base: self._safe_deg(self.base, base_angle),
+                self.head_yaw: self._safe_deg(self.head_yaw, head_angle),
+                self.right_arm: self._safe_deg(self.right_arm, arms_angle),
+                self.left_arm: self._safe_deg(self.left_arm, arms_angle),
+            }
+            self.ctrl.move_many(cmds)
+
+            # rate control
+            next_t += dt
+            sleep_dt = next_t - time.perf_counter()
+            if sleep_dt > 0:
+                time.sleep(sleep_dt)
+            else:
+                next_t = time.perf_counter()
+
+        # Return to home at the end
+        self.home()
+
+
 
 
 
