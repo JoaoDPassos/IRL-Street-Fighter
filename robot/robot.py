@@ -6,7 +6,7 @@ from typing import Optional, Dict
 import time
 import math
 
-from servo_control import ServoController, Servo, ServoConfig
+from servo import ServoController, Servo, ServoConfig
 
 
 @dataclass
