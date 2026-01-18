@@ -1,5 +1,22 @@
 clear();
 
+const PI_HOST = "http://172.26.53.118:8000";   // <- replace with your Pi IP
+const PI_TOKEN = "change-me";
+
+function notifyPi(koType, timerVal) {
+  try {
+    const img = new Image();
+    img.src =
+      `${PI_HOST}/ko?token=${encodeURIComponent(PI_TOKEN)}` +
+      `&type=${encodeURIComponent(koType)}` +
+      `&timer=${encodeURIComponent(timerVal)}` +
+      `&t=${Date.now()}`; // cache-buster
+  } catch (e) {
+    console.log("Pi notify failed:", e);
+  }
+}
+
+
 console.log('=== TLA K.O. DETECTION – Canvas Hook ===');
 
 let timer = 0;
