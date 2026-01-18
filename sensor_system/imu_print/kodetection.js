@@ -1,23 +1,32 @@
 clear();
 
-const PI_HOST = "http://172.26.53.118:8000";   // <- replace with your Pi IP
-const PI_TOKEN = "change-me";
+console.log('=== TLA K.O. DETECTION + Raspberry Pi SIGNAL ===');
 
+// ======= CONFIG (EDIT THESE) =======
+const PI_HOST  = "http://172.26.53.118:8000"; // <-- your Pi IP + port
+const PI_TOKEN = "change-me";                 // <-- must match SECRET in ko_server.py
+// ===================================
+
+// Fire-and-forget LAN signal (works well even when fetch/CORS is annoying)
 function notifyPi(koType, timerVal) {
-  try {
-    const img = new Image();
-    img.src =
-      `${PI_HOST}/ko?token=${encodeURIComponent(PI_TOKEN)}` +
-      `&type=${encodeURIComponent(koType)}` +
-      `&timer=${encodeURIComponent(timerVal)}` +
-      `&t=${Date.now()}`; // cache-buster
-  } catch (e) {
-    console.log("Pi notify failed:", e);
-  }
+  const url =
+    `${PI_HOST}/ko?token=${encodeURIComponent(PI_TOKEN)}` +
+    `&type=${encodeURIComponent(koType)}` +
+    `&timer=${encodeURIComponent(timerVal)}` +
+    `&t=${Date.now()}`; // cache-buster
+
+  // Send request
+  const img = new Image();
+
+  // Helpful browser-side feedback
+  img.onload  = () => console.log(`📡 Sent to Pi: ${koType} @ ${timerVal}s`);
+  img.onerror = () => console.log(`⚠️ Could not reach Pi (blocked/unreachable): ${url}`);
+
+  img.src = url;
 }
 
-
-console.log('=== TLA K.O. DETECTION – Canvas Hook ===');
+// Quick manual test you can run anytime:
+// notifyPi("test", 99);
 
 let timer = 0;
 let lastTimer = -1;
@@ -53,7 +62,6 @@ const COOLDOWN_MS = 8000;       // 8s cooldown between KOs
 // Monitor freezes
 setInterval(() => {
   if (timer === lastTimer && timer >= 0) {
-    // NOTE: allow 0 here too so 00 time-outs count as freezes
     timerFreezeCount++;
 
     if (timerFreezeCount % 10 === 0) {
@@ -73,12 +81,16 @@ setInterval(() => {
         console.log('💀 K.O. DETECTED (health)!');
         console.log(`   Timer: ${timer}s`);
 
+        notifyPi("health", timer);   // <-- SEND TO PI
+
         lastKOTime = now;
         koTriggeredThisFreeze = true;
       } else if (timer === 0 && now - lastKOTime > COOLDOWN_MS) {
         // Time-out K.O. at 00
         console.log('⌛ K.O. DETECTED (time up)!');
         console.log('   Timer: 0s (TIME UP)');
+
+        notifyPi("timeup", 0);       // <-- SEND TO PI
 
         lastKOTime = now;
         koTriggeredThisFreeze = true;
@@ -113,3 +125,4 @@ new MutationObserver(() => {
 
 console.log('✓ K.O. detection active');
 console.log('📊 8-second cooldown to skip "Ready..." after K.O.');
+console.log('🧪 To test right now, run: notifyPi("test", 99)');
